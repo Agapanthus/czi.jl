@@ -1,11 +1,10 @@
-module czi
+module CZI
 
-using ColorTypes, CxxWrap, UUIDs
+using ColorTypes, UUIDs, CxxWrap
 
 module Cpp
-	using CxxWrap
-	const libpath = joinpath(dirname(@__DIR__), "deps", "build", "lib", "liblibczi_julia")
-	@wrapmodule () -> libpath :define_julia_module
+	using CxxWrap, libczi_julia_jll
+  	@wrapmodule () -> libczi_julia_jll.libczi_julia :define_julia_module
 	function __init__()
 		@initcxx
 	end
@@ -38,7 +37,7 @@ Immutable mirror of the C++ `MySubblockInfo`.
 | `file_pos`      | byte offset inside the file (`typemax(UInt64)` if N/A) |
 | `compression`   | compression mode (`CompressionMode`)                 |
 | `pyramid_type`  | pyramid level information (`SubBlockPyramidType`)     |
-| `z,c,t,r,s,i,h,v,b,m` | dimension indices (−1 if not present)           |
+| `z,c,t,r,s,i,h,v,b,m` | dimension indices (-1 if not present)           |
 """
 struct CZISubblockInfo
 	logical_size :: NTuple{2, Int32}

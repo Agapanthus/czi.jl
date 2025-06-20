@@ -1,3 +1,5 @@
 /Manifest*.toml
 build
 products
+tmp
+.vscode
