@@ -46,6 +46,7 @@ include("./libjulia/common.jl")
 platforms = vcat(libjulia_platforms.(julia_versions)...)
 filter!(p -> os(p) in ["linux", "windows"], platforms)
 filter!(p -> !(arch(p) == "i686" && libc(p) == "musl"), platforms)
+filter!(p -> arch(p) != "riscv64", platforms)
 
 # The products that we will ensure are always built
 products = [

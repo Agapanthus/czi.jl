@@ -1,10 +1,10 @@
 module CZI
 
-using ColorTypes, UUIDs, CxxWrap
+using ColorTypes, UUIDs, CxxWrap, ImageIO, Dates, Unitful, EzXML
 
 module Cpp
 	using CxxWrap, libczi_julia_jll
-  	@wrapmodule () -> libczi_julia_jll.libczi_julia :define_julia_module
+	@wrapmodule () -> libczi_julia_jll.libczi_julia :define_julia_module
 	function __init__()
 		@initcxx
 	end
@@ -18,7 +18,10 @@ const PixelType           = Cpp.PixelType
 export CZIFile, CZISubblockInfo, CZIAttachmentInfo, CZIHeader,
 	open_czi, dimension_ranges, metadata, subblocks, subblocks_all,
 	subblock_meta, bitmap, image, attachments, attachment_data,
-	header, PixelType, CompressionMode, SubBlockPyramidType
+	header, PixelType, CompressionMode, SubBlockPyramidType,
+	czi_pixel_size, czi_channel_names, czi_laser_power,
+	czi_detector_gain, czi_magnification, czi_laser_time,
+	parse_nanotime, metadata_str
 
 """
 	CZISubblockInfo
@@ -166,12 +169,20 @@ If you want to know for sure what exists in your czi file, you'll have to iterat
 	d
 end
 
+
 """
-	metadata(f) -> String
+	metadata_str(f) -> String
 
 Return the XML *ImageDocument* metadata.
 """
-@cxxdereference metadata(f::CZIFile) = Cpp.metadata(f)
+@cxxdereference metadata_str(f::CZIFile)::String = Cpp.metadata(f)
+
+"""
+	metadata(f) -> CZIMetadata
+
+Return the XML *ImageDocument* metadata.
+"""
+@cxxdereference metadata(f::CZIFile)::CZIMetadata = CZIMetadata(metadata_str(f))
 
 """
 	subblocks(f) -> Vector{CZISubblockInfo}
@@ -250,26 +261,22 @@ Enumerate file-level attachments (thumbnails, custom blobs, …).
 """
 @cxxdereference attachments(f::CZIFile) = [_attachment_info_copy(ai) for ai in Cpp.attachments(f)]
 
-"""
-	attachment_data(f, idx_or_info) -> Vector{UInt8}
-
-Raw attachment payload. Inspect `content_file_type` to interpret.
-"""
-@cxxdereference function attachment_data(f::CZIFile, idx::Integer)
-	Cpp.attachment(f, Int32(idx))
+@cxxdereference function attachment_data(f::CZIFile, idx::Int32)
+	Cpp.attachment(f, idx)
 end
 
-"""
-	attachment_string(f, idx_or_info) -> String
-
-Return attachment data as a UTF-8 string. Use with attachments that
-are known to be text files (e.g. `content_file_type == "TXT"`).
-"""
-@cxxdereference function attachment_string(f::CZIFile, idx::Integer)
-	String(reinterpret(UInt8, attachment_data(f, idx)))
+@cxxdereference function attachment(f::CZIFile, ai::CZIAttachmentInfo)
+	local data = attachment_data(f, Int32(ai.index))
+	if ai.content_file_type == "JPG"
+		ImageIO.load(ImageIO.Stream{ImageIO.DataFormat{:JPEG}}(IOBuffer(Vector{UInt8}(data))))
+	elseif ai.content_file_type == "PNG"
+		ImageIO.load(ImageIO.Stream{ImageIO.DataFormat{:PNG}}(IOBuffer(Vector{UInt8}(data))))
+	elseif ai.content_file_type == "XML"
+		String(reinterpret(UInt8, data))
+	else
+		data
+	end
 end
-
-@cxxdereference attachment_data(f::CZIFile, ai::CZIAttachmentInfo) = attachment_data(f, ai.index)
 
 @cxxdereference attachment_string(f::CZIFile, ai::CZIAttachmentInfo) = attachment_string(f, ai.index)
 
@@ -284,5 +291,22 @@ Return file header (`GUID` + format version).
 end
 
 Base.show(io::IO, h::CZIHeader) = print(io, "CZI v$(h.major_version).$(h.minor_version) (", h.file_guid, ")")
+Base.show(io::IO, f::CZIFile) = Base.show(io, header(f))
+function Base.show(io::IO, sb::CZISubblockInfo)
+	str = "CZI sub-block $(sb.index) at position ($(sb.logical_pos[1]), $(sb.logical_pos[2]), $(sb.z)), time $(sb.t), and channel $(sb.c) with size $(sb.logical_size)"
+	if sb.m != -1
+		str *= " being part of stack $(sb.m) of mosaic scene $(sb.s)"
+	else
+		str *= " in scene $(sb.s)"
+	end
+	print(io, str)
+end
+Base.show(io::IO, ai::CZIAttachmentInfo) = print(io, "CZI attachment $(ai.index) \"$(ai.name)\" with GUID $(ai.content_guid) and type $(ai.content_file_type)")
+
+include("metadata.jl")
 
 end
+
+
+
+

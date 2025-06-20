@@ -4,65 +4,99 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ ad7087eb-6626-422f-a73e-ea835a6d4600
-# using Pluto; Pluto.run(threads=16)
-begin
-    #import Pkg
-	#Pkg.activate(joinpath(Base.current_project(), "..", "test", "tmp"))
-    #Pkg.develop(path=dirname(Base.current_project()))
-	#Pkg.instantiate()
-    using Images, ProgressLogging, GLMakie
-	
-	# WGLMakie is nice, but the volume renders load forever on my machine... Better to use the GL popout window!
-	#WGLMakie.activate!()
-
+# ╔═╡ 9ed99643-2da7-4c7c-9edf-348a5b6f8057
+begin 
 	# https://discourse.julialang.org/t/best-way-to-include-local-module-with-struct-in-pluto/104044/2
 	push!(LOAD_PATH, pwd() * "/..");
-	#ENV["LD_LIBRARY_PATH"] = Sys.BINDIR * "/../lib:" * get(ENV, "LD_LIBRARY_PATH", "")
-	#@show get(ENV, "LD_LIBRARY_PATH", "")
-	#@show Sys.BINDIR * "/../lib"
 	using CZI
-
-	#using Singular
 end
 
-# ╔═╡ c20f8070-1aa2-42ef-b1f2-edeb383ae446
-Sys.BINDIR
-
-# ╔═╡ 1ab676c0-5887-465d-877d-89d62e88a29a
-pathof(Images)
-
-# ╔═╡ d0816de5-1a9b-402a-bcc8-0ea474f484bf
-
+# ╔═╡ ad7087eb-6626-422f-a73e-ea835a6d4600
+# using Pluto; Pluto.run(threads=16)
+using Images, ProgressLogging, GLMakie
 
 # ╔═╡ 549323dc-4d4b-4186-9b08-f093c1f7ab1a
-f = CZI.open_czi("/mnt/h/czi/large.czi");
+f = CZI.open_czi("/mnt/h/czi/large.czi")
 
 # ╔═╡ 3ed2f42f-1217-418c-a84b-120c89df799d
 CZI.dimension_ranges(f)
 
+# ╔═╡ 5eafa205-73a4-4372-881d-e51775e6cf7a
+tile = CZI.image(f, CZI.subblocks(f)[3*50+1]);
+
+# ╔═╡ f3e1be75-c12c-44ce-91fe-6a6bf78eb195
+tile
+
 # ╔═╡ 4a549741-c592-43d9-a275-8c94312837c0
-@time CZI.subblocks(f);
+@time length(CZI.subblocks(f))
+
+# ╔═╡ b85cf9cd-2a94-4a3a-bd70-5ae01defca86
+CZI.subblocks(f)[3000]
+
+# ╔═╡ eb1fd4c4-59e5-4f08-bd14-938907943ac2
+as = CZI.attachments(f)
+
+# ╔═╡ caeddae4-4f87-4781-89a2-f6ec4c5e73d5
+CZI.attachment(f, as[1]) * 10
 
 # ╔═╡ 79f84af9-2ff9-450d-a216-c59cb587fc29
-println(CZI.metadata(f)[1:100])
+meta = CZI.metadata(f)
+
+# ╔═╡ ad0523bd-c793-4853-85b8-4819717e119a
+czi_pixel_size(meta)
+
+# ╔═╡ 7c6b140b-9d4b-47c9-8ff7-aea6ddbd2c5f
+czi_laser_time(meta)
+
+# ╔═╡ 26abdd4a-5e00-4ab7-b25a-d8c7eb88c7ed
+czi_channel_names(meta)
+
+# ╔═╡ b0c57420-f372-4a40-8837-8e686e900e2b
+
+
+# ╔═╡ a1e7d2f4-b7af-4bd0-b48e-4583752ebcc5
+
+
+# ╔═╡ 05ed9913-157d-4a3a-983a-cc6ee1487e1b
+
+
+# ╔═╡ d0b0c2a7-b4eb-4c6e-8324-3d480ef164bf
+
+
+# ╔═╡ eb193ff1-a2d3-4ae6-a4a7-cac4f4df47c8
+
+
+# ╔═╡ 44f3221b-110b-448c-a6e0-57e532f3d9d3
+
+
+# ╔═╡ fe31eac5-d15d-43bb-887e-eee4df0056e7
+
+
+# ╔═╡ 050a2656-a1e2-4639-84b2-4f613bc061d9
+
+
+# ╔═╡ a97e7c31-8a17-414d-a2e1-36a25dc33724
+
+
+# ╔═╡ 1f45e93a-ffce-4c6b-b219-4a80216c2949
+
 
 # ╔═╡ ca648b41-a6ff-4350-9cc6-ef666c05eba5
 [CZI.subblock_meta(f, sb) for sb in CZI.subblocks(f)[1:3]]
 
 # ╔═╡ a0326e8e-71d4-4964-8631-815d881300c4
 begin
-	local zstack = [] 
+	#local zstack = [] 
 	sbs = [sb for sb in CZI.subblocks(f) 
 		   if sb.m == 3 && sb.c == 0] # && sb.z in 0:4:100]
 	avg = zeros(Gray{Float32}, sbs[1].logical_size)
 	@progress for sb in sbs
-		local img = CZI.image(f, sb)
+		#local img = CZI.image(f, sb)
 		avg .+= img
 		push!(zstack, img)
 	end
 	
-	local vol1 = reshape(reduce(hcat, zstack), size(zstack[1])..., :)
+	#local vol1 = reshape(reduce(hcat, zstack), size(zstack[1])..., :)
 	local mini, maxi = extrema(vol1)
 	vol::Array{Float32, 3} = (vol1 .- mini) ./ (maxi - mini)	
 	avg ./ maximum(avg) 
@@ -2144,13 +2178,29 @@ version = "1.8.1+0"
 
 # ╔═╡ Cell order:
 # ╠═ad7087eb-6626-422f-a73e-ea835a6d4600
-# ╠═c20f8070-1aa2-42ef-b1f2-edeb383ae446
-# ╠═1ab676c0-5887-465d-877d-89d62e88a29a
-# ╠═d0816de5-1a9b-402a-bcc8-0ea474f484bf
+# ╠═9ed99643-2da7-4c7c-9edf-348a5b6f8057
 # ╠═549323dc-4d4b-4186-9b08-f093c1f7ab1a
 # ╠═3ed2f42f-1217-418c-a84b-120c89df799d
+# ╠═5eafa205-73a4-4372-881d-e51775e6cf7a
+# ╠═f3e1be75-c12c-44ce-91fe-6a6bf78eb195
 # ╠═4a549741-c592-43d9-a275-8c94312837c0
+# ╠═b85cf9cd-2a94-4a3a-bd70-5ae01defca86
+# ╠═eb1fd4c4-59e5-4f08-bd14-938907943ac2
+# ╠═caeddae4-4f87-4781-89a2-f6ec4c5e73d5
 # ╠═79f84af9-2ff9-450d-a216-c59cb587fc29
+# ╠═ad0523bd-c793-4853-85b8-4819717e119a
+# ╠═7c6b140b-9d4b-47c9-8ff7-aea6ddbd2c5f
+# ╠═26abdd4a-5e00-4ab7-b25a-d8c7eb88c7ed
+# ╠═b0c57420-f372-4a40-8837-8e686e900e2b
+# ╠═a1e7d2f4-b7af-4bd0-b48e-4583752ebcc5
+# ╠═05ed9913-157d-4a3a-983a-cc6ee1487e1b
+# ╠═d0b0c2a7-b4eb-4c6e-8324-3d480ef164bf
+# ╠═eb193ff1-a2d3-4ae6-a4a7-cac4f4df47c8
+# ╠═44f3221b-110b-448c-a6e0-57e532f3d9d3
+# ╠═fe31eac5-d15d-43bb-887e-eee4df0056e7
+# ╠═050a2656-a1e2-4639-84b2-4f613bc061d9
+# ╠═a97e7c31-8a17-414d-a2e1-36a25dc33724
+# ╠═1f45e93a-ffce-4c6b-b219-4a80216c2949
 # ╠═ca648b41-a6ff-4350-9cc6-ef666c05eba5
 # ╠═a0326e8e-71d4-4964-8631-815d881300c4
 # ╠═def40a3a-70b1-4cc9-ae40-9db07e4c8c84
