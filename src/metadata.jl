@@ -17,23 +17,42 @@ function find_parse(::Type{T}, xml::EzXML.Document, path::String) where T
 	isnothing(node) ? missing : parse(T, node.content)
 end
 
-function czi_magnification(meta::CZIMetadata)
+"""
+	Returns the total magnification factor of the microscope.
+	Might return `missing` if the file wasn't created by ZEN Blue.
+"""
+function magnification(meta::CZIMetadata)
 	find_parse(Float64, meta.xml, ".//HardwareSetting/ParameterCollection/TotalMagnification")
 end
 
-function czi_detector_gain(meta::CZIMetadata)
+"""
+	Returns the detector gain in volts.
+	Might return `missing` if the file wasn't created by ZEN Blue.
+"""
+function detector_gain(meta::CZIMetadata)
 	find_parse(Float64, meta.xml, ".//HardwareSetting/ParameterCollection/DetectorGain") * u"V"
 end
 
-function czi_laser_power(meta::CZIMetadata)
+"""
+	Returns the laser power in milliwatts.
+	Might return `missing` if the file wasn't created by ZEN Blue.
+"""
+function laser_power(meta::CZIMetadata)
 	find_parse(Float64, meta.xml, ".//HardwareSetting/ParameterCollection/MaxPowerMilliWatts") * u"mW"
 end
 
-function czi_laser_time(meta::CZIMetadata)
+"""
+	Returns the laser enable time in femtoseconds.
+	Might return `missing` if the file wasn't created by ZEN Blue.
+"""
+function laser_time(meta::CZIMetadata)
 	find_parse(Float64, meta.xml, ".//HardwareSetting/ParameterCollection/LaserEnableTime") * u"fs"
 end
 
-function czi_channel_names(meta::CZIMetadata)
+"""
+	Returns a dictionary mapping channel IDs to names.
+"""
+function channel_names(meta::CZIMetadata)
 	nodes = EzXML.findall(".//DisplaySetting/Channels/Channel", meta.xml)
 	Dict(
 		(id = n["Id"];
@@ -43,7 +62,10 @@ function czi_channel_names(meta::CZIMetadata)
 	)
 end
 
-function czi_pixel_size(meta::CZIMetadata)
+"""
+	Returns a tuple of `(x, y, z)` pixel sizes in m.
+"""
+function pixel_size(meta::CZIMetadata)
 	x = find_parse(Float64, meta.xml, ".//Scaling/Items/Distance[@Id='X']/Value")
 	y = find_parse(Float64, meta.xml, ".//Scaling/Items/Distance[@Id='Y']/Value")
 	z = find_parse(Float64, meta.xml, ".//Scaling/Items/Distance[@Id='Z']/Value")

@@ -24,12 +24,6 @@ export CZIFile, CZISubblockInfo, CZIAttachmentInfo, CZIHeader,
 	parse_nanotime, metadata_str
 
 """
-	CZISubblockInfo
-
-Immutable mirror of the C++ `MySubblockInfo`.
-
-**Fields**
-
 | field           | meaning (see *libCZI* docs)                           |
 |-----------------|-------------------------------------------------------|
 | `logical_size`  | `(w,h)` in specimen pixel space                       |
@@ -88,10 +82,6 @@ end
 end
 
 """
-	CZIAttachmentInfo
-
-Mirror of C++ `MyAttachmentInfo`. Use together with [`attachment_data`](@ref).
-
 | field              | description                                   |
 |--------------------|-----------------------------------------------|
 | `content_guid`     | unique identifier of the attachment content   |
@@ -119,8 +109,6 @@ end
 end
 
 """
-	CZIHeader
-
 File header as returned by [`header`](@ref).
 
 * `file_guid` - unique file identifier
@@ -133,8 +121,6 @@ struct CZIHeader
 end
 
 """
-	open_czi(path) -> CZIFile
-
 Open *path* read-only and return an opaque `CZIFile` handle. Closing is
 automatic via Julia's GC.
 """
@@ -159,7 +145,8 @@ Inclusive ranges for each dimension present in *f* (see ZEISS convention:
 - Y: Height (of the bounding box of the scene in channel 0)
 - M: Mosaic Index (to reference tiles (=stacks of sub-blocks) in a (mosaic-)scene)
 
-If you want to know for sure what exists in your czi file, you'll have to iterate all sub-blocks using `subblocks`.
+If you want to know for sure which combinations within these ranges exists 
+	in your czi file, you'll have to iterate all sub-blocks using `subblocks`.
 """
 @cxxdereference function dimension_ranges(f::CZIFile)::Dict{Char, UnitRange{Int}}
 	d = Dict{Char, UnitRange{Int}}()
@@ -171,16 +158,12 @@ end
 
 
 """
-	metadata_str(f) -> String
-
-Return the XML *ImageDocument* metadata.
+Return the XML metadata as a string.
 """
 @cxxdereference metadata_str(f::CZIFile)::String = Cpp.metadata(f)
 
 """
-	metadata(f) -> CZIMetadata
-
-Return the XML *ImageDocument* metadata.
+Return the XML metadata as CZIMetadata.
 """
 @cxxdereference metadata(f::CZIFile)::CZIMetadata = CZIMetadata(metadata_str(f))
 
@@ -265,6 +248,16 @@ Enumerate file-level attachments (thumbnails, custom blobs, …).
 	Cpp.attachment(f, idx)
 end
 
+"""
+	attachment(f, ai::CZIAttachmentInfo) -> Any
+
+Return the attachment data for the given attachment info. The type of the
+attachment is determined by the `content_file_type` field of the
+`CZIAttachmentInfo`:
+- `JPG` or `PNG`: returns an `Image` object
+- `XML`: returns a `String` with the XML content
+- otherwise: returns the raw data as `Vector{UInt8}`
+"""
 @cxxdereference function attachment(f::CZIFile, ai::CZIAttachmentInfo)
 	local data = attachment_data(f, Int32(ai.index))
 	if ai.content_file_type == "JPG"
