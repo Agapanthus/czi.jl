@@ -1,6 +1,6 @@
 module CZI
 
-using ColorTypes, UUIDs, CxxWrap, ImageIO, Dates, Unitful, EzXML
+using ColorTypes, UUIDs, CxxWrap, Dates, Unitful, EzXML
 
 module Cpp
 	using CxxWrap, libczi_julia_jll

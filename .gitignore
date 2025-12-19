@@ -3,3 +3,4 @@ build
 products
 tmp
 .vscode
+*.czi
