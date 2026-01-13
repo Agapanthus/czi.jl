@@ -1,6 +1,6 @@
 module CZI
 
-using ColorTypes, UUIDs, CxxWrap, Dates, Unitful, EzXML
+using ColorTypes, UUIDs, CxxWrap, Dates, Unitful, EzXML, ImageIO
 
 module Cpp
 	using CxxWrap, libczi_julia_jll
@@ -19,8 +19,8 @@ export CZIFile, CZISubblockInfo, CZIAttachmentInfo, CZIHeader,
 	open_czi, dimension_ranges, metadata, subblocks, subblocks_all,
 	subblock_meta, bitmap, image, attachments, attachment_data,
 	header, PixelType, CompressionMode, SubBlockPyramidType,
-	czi_pixel_size, czi_channel_names, czi_laser_power,
-	czi_detector_gain, czi_magnification, czi_laser_time,
+	pixel_size, channel_names, laser_power,
+	detector_gain, magnification, laser_time,
 	parse_nanotime, metadata_str
 
 """
@@ -32,7 +32,7 @@ export CZIFile, CZISubblockInfo, CZIAttachmentInfo, CZIHeader,
 | `ptype`         | pixel type (`PixelType` enum)                         |
 | `index`         | sub-block index inside the CZI                        |
 | `file_pos`      | byte offset inside the file (`typemax(UInt64)` if N/A) |
-| `compression`   | compression mode (`CompressionMode`)                 |
+| `compression`   | compression mode (`CompressionMode`)                  |
 | `pyramid_type`  | pyramid level information (`SubBlockPyramidType`)     |
 | `z,c,t,r,s,i,h,v,b,m` | dimension indices (-1 if not present)           |
 """
@@ -85,7 +85,7 @@ end
 | field              | description                                   |
 |--------------------|-----------------------------------------------|
 | `content_guid`     | unique identifier of the attachment content   |
-| `content_file_type`| 8-char type code (e.g. `"JPG"`)              |
+| `content_file_type`| 8-char type code (e.g. `JPG`)                 |
 | `name`             | descriptive attachment name                   |
 | `index`            | zero-based index used to retrieve the data    |
 """
@@ -127,9 +127,7 @@ automatic via Julia's GC.
 open_czi(path::AbstractString) = Cpp.CziFile(String(path))
 
 """
-	dimension_ranges(f) -> Dict{Char, UnitRange{Int}}
-
-Inclusive ranges for each dimension present in *f* (see ZEISS convention:
+Inclusive ranges for each dimension present in file f (see ZEISS convention:
 <https://zeiss.github.io/libczi/pages/image_document_concept.html>).
 
 - Z: z-focus (Plane is from a different Z-plane)
@@ -168,22 +166,16 @@ Return the XML metadata as CZIMetadata.
 @cxxdereference metadata(f::CZIFile)::CZIMetadata = CZIMetadata(metadata_str(f))
 
 """
-	subblocks(f) -> Vector{CZISubblockInfo}
-
 Level-0 (non-pyramid) sub-blocks.
 """
 @cxxdereference subblocks(f::CZIFile) = [_subblock_copy(sb) for sb in Cpp.subblocks_level0(f)]
 
 """
-	subblocks_all(f) -> Vector{CZISubblockInfo}
-
 Enumerate **all** sub-blocks, including pyramid levels.
 """
 @cxxdereference subblocks_all(f::CZIFile) = [_subblock_copy(sb) for sb in Cpp.subblocks(f)]
 
 """
-	subblock_meta(f, idx_or_info) -> String
-
 Per-sub-block XML metadata fragment.
 """
 @cxxdereference function subblock_meta(f::CZIFile, idx::Integer)
@@ -192,8 +184,6 @@ end
 @cxxdereference subblock_meta(f::CZIFile, sb::CZISubblockInfo) = subblock_meta(f, sb.index)
 
 """
-	bitmap(f, idx_or_info) -> Vector{UInt8}
-
 Raw pixel buffer (interleaved, **no** colour conversion). Use
 [`image`](@ref) for a decoded array.
 """
@@ -203,8 +193,6 @@ end
 @cxxdereference bitmap(f::CZIFile, sb::CZISubblockInfo) = bitmap(f, sb.index)
 
 """
-	image(f, sbinfo) -> AbstractArray
-
 Return a colourant array for the given sub-block. Supported `PixelType`s:
 `Gray8`, `Gray16`, `Gray32Float`, `Gray64Float`, `Bgr24`, `Bgr48`,
 `Bgr96Float`, `Bgra32`. Returns `nothing` for unsupported formats.
@@ -238,8 +226,6 @@ function image(f::CZIFile, sb::CZISubblockInfo)
 end
 
 """
-	attachments(f) -> Vector{CZIAttachmentInfo}
-
 Enumerate file-level attachments (thumbnails, custom blobs, …).
 """
 @cxxdereference attachments(f::CZIFile) = [_attachment_info_copy(ai) for ai in Cpp.attachments(f)]
@@ -249,8 +235,6 @@ Enumerate file-level attachments (thumbnails, custom blobs, …).
 end
 
 """
-	attachment(f, ai::CZIAttachmentInfo) -> Any
-
 Return the attachment data for the given attachment info. The type of the
 attachment is determined by the `content_file_type` field of the
 `CZIAttachmentInfo`:
@@ -274,8 +258,6 @@ end
 @cxxdereference attachment_string(f::CZIFile, ai::CZIAttachmentInfo) = attachment_string(f, ai.index)
 
 """
-	header(f) -> CZIHeader
-
 Return file header (`GUID` + format version).
 """
 @cxxdereference function header(f::CZIFile)::CZIHeader

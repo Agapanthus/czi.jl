@@ -4,3 +4,4 @@ products
 tmp
 .vscode
 *.czi
+*.xml
