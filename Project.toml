@@ -1,6 +1,6 @@
 name = "CZI"
 uuid = "3945b127-b976-4324-94b4-ee8d09e47738"
-version = "1.0.0-DEV"
+version = "1.0.1-DEV"
 authors = ["Eric Skaliks"]
 
 [deps]
